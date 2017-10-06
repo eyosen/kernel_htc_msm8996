@@ -30,6 +30,14 @@
 #include <linux/alarmtimer.h>
 #endif
 
+#ifndef CONFIG_LEDS_QPNP_BUTTON_BLINK
+#define CONFIG_LEDS_QPNP_BUTTON_BLINK
+#endif
+
+#ifdef CONFIG_LEDS_QPNP_BUTTON_BLINK
+#include <linux/alarmtimer.h>
+#endif
+
 #undef CDBG
 #define CDBG(fmt, args...) pr_info("[CAM][FL]"fmt, ##args)
 
@@ -262,7 +270,7 @@ int is_dim_blink_needed(void)
 #define DEFAULT_VIB_LENGTH 250
 
 // on off:
-static int vib_notification_reminder = 0;
+static int vib_notification_reminder = 1;
 // how oftern vib
 static int vib_notification_slowness = DEFAULT_VIB_SLOW;
 // how long vibration motor should be on for one reminder buzz...
@@ -330,28 +338,28 @@ void do_flash_blink(void) {
 
 	while (count++<limit) {
 	htc_torch_main(150,0);  // [o] [ ]
-	udelay(5 - dim * DIM_USEC);
+	udelay(3 - dim * DIM_USEC);
 	htc_torch_main(0,0);	// [ ] [ ]
 	udelay(15000);
 
 	htc_torch_main(0,150);  // [ ] [o]
-	udelay(5 - dim * DIM_USEC);
+	udelay(3 - dim * DIM_USEC);
 	htc_torch_main(0,0);	// [ ] [ ]
 	udelay(15000);
 
 	if (!dim) {
 		htc_torch_main(150,0);  // [o] [ ]
-		udelay(5 - dim * DIM_USEC);
+		udelay(3 - dim * DIM_USEC);
 		htc_torch_main(0,0);	// [ ] [ ]
 		udelay(15000);
 
 		htc_torch_main(0,150);  // [ ] [o]
-		udelay(5 - dim * DIM_USEC);
+		udelay(3 - dim * DIM_USEC);
 		htc_torch_main(0,0);	// [ ] [ ]
 		udelay(15000);
 
 		htc_torch_main(150,0);  // [o] [ ]
-		udelay(5 - dim * DIM_USEC);
+		udelay(3 - dim * DIM_USEC);
 		htc_torch_main(0,0);	// [ ] [ ]
 		if (count==1) {
 			udelay(15000);
