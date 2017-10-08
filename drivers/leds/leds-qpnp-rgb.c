@@ -307,6 +307,7 @@ static struct workqueue_struct *g_led_on_work_queue;
 static struct qpnp_led_data *g_led_red = NULL, *g_led_green = NULL, *g_led_blue = NULL, *g_led_virtual = NULL;
 
 
+static uint16_t current_off_timer = 0;
 static int current_blink = 0;
 static int table_level_num = 0;
 static DEFINE_MUTEX(flash_lock);
@@ -2700,14 +2701,6 @@ void set_led_touch_solution(uint16_t solution)
 EXPORT_SYMBOL(set_led_touch_solution);
 #endif
 
-static struct lut_params multicolor_lut_params = {
-	.flags = QPNP_LED_PWM_FLAGS | PM_PWM_LUT_PAUSE_HI_EN,
-	.idx_len = SHORT_LUT_LEN,
-	.ramp_step_ms = 64,
-	.lut_pause_hi = 1792,
-	.lut_pause_lo = 0,
-};
-
 #ifdef CONFIG_LEDS_QPNP_BUTTON_BLINK
 // --- vib notification reminder
 static ssize_t vib_notification_show(struct device *dev,
@@ -2942,6 +2935,14 @@ static DEVICE_ATTR(bln_light_level, (S_IWUSR|S_IRUGO),
 
 
 #endif
+
+static struct lut_params multicolor_lut_params = {
+	.flags = QPNP_LED_PWM_FLAGS | PM_PWM_LUT_PAUSE_HI_EN,
+	.idx_len = SHORT_LUT_LEN,
+	.ramp_step_ms = 64,
+	.lut_pause_hi = 1792,
+	.lut_pause_lo = 0,
+};
 
 static int led_multicolor_short_blink(struct qpnp_led_data *led, int pwm_coefficient){
 	int rc = 0;
@@ -3393,6 +3394,15 @@ static void led_alarm_handler(struct alarm *alarm)
 	queue_work(g_led_work_queue, &ldata->led_off_work);
 }*/
 
+static ssize_t led_off_timer_show(struct device *dev,
+                                    struct device_attribute *attr,
+                                    char *buf)
+{
+	int min = current_off_timer / 60;
+	int sec = current_off_timer - (min * 60);
+	return sprintf(buf, "%d %d\n", min, sec);
+}
+
 static ssize_t led_off_timer_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -3418,6 +3428,7 @@ static ssize_t led_off_timer_store(struct device *dev,
 
 	LED_DBG("Setting %s off_timer to %d min %d sec \n", led_cdev->name, min, sec);
 	off_timer = min * 60 + sec;
+	current_off_timer = off_timer;
 
 /*	alarm_cancel(&led->led_alarm);
 	cancel_work_sync(&led->led_off_work);
@@ -3428,7 +3439,7 @@ static ssize_t led_off_timer_store(struct device *dev,
 	}*/
 	return count;
 }
-static DEVICE_ATTR(off_timer, 0200, NULL, led_off_timer_store);
+static DEVICE_ATTR(off_timer, 0644, led_off_timer_show, led_off_timer_store);
 
 #ifdef CONFIG_LEDS_QPNP_BUTTON_BLINK
 
@@ -3953,7 +3964,7 @@ static ssize_t led_multi_color_show(struct device *dev,
 	return sprintf(buf, "%x\n", ModeRGB);
 }
 
-static void update_ModeRGB(struct qpnp_led_data *led, uint32_t val)
+static int update_ModeRGB(struct qpnp_led_data *led, uint32_t val)
 {
 	led->mode = (val & Mode_Mask) >> 24;
 	if(g_led_red)
@@ -3963,6 +3974,21 @@ static void update_ModeRGB(struct qpnp_led_data *led, uint32_t val)
 	if(g_led_blue)
 		g_led_blue->rgb_cfg->pwm_cfg->pwm_coefficient = (val & Blue_Mask) * indicator_pwm_ratio / 255;
 	ModeRGB = val;
+
+#ifdef CONFIG_LEDS_QPNP_BUTTON_BLINK
+	// we suppose charging if it's coloring led in CONSTANT light and RED (mode val = 1 and only red or only full green (100%) is enabled)
+	supposedly_charging = led->mode == 1 && (g_led_red->rgb_cfg->pwm_cfg->pwm_coefficient > 0 || g_led_green->rgb_cfg->pwm_cfg->pwm_coefficient > 0);
+
+	LED_INFO(" %s , RED = %d supposedly charging %d charging %d\n" , __func__, g_led_red->rgb_cfg->pwm_cfg->pwm_coefficient, supposedly_charging, charging);
+
+	if (colored_charge_level && supposedly_charging && first_level_registered) {
+		// if it's supposedly charging and first level registered from HTC battery, we can go and set charge level color mix instead of normal multicolor setting later...
+		led_multi_color_charge_level(charge_level);
+		// and return so color is not overwritten...
+		return 1;
+	}
+#endif
+	return 0;
 }
 
 static ssize_t led_multi_color_store(struct device *dev,
@@ -4020,7 +4046,7 @@ static ssize_t led_multi_color_mode_and_lut_params_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	update_ModeRGB(led, new_ModeRGB);
+	if (update_ModeRGB(led, new_ModeRGB)) return count;
 	multicolor_lut_params.ramp_step_ms = ramp_step_ms;
 	multicolor_lut_params.lut_pause_hi = lut_pause_hi;
 	multicolor_lut_params.lut_pause_lo = lut_pause_lo;
