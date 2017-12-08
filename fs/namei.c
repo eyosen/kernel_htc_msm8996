@@ -37,6 +37,10 @@
 #include <linux/hash.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#endif
+
 #include "internal.h"
 #include "mount.h"
 
@@ -1785,7 +1789,9 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	struct path next;
 	int err;
-	
+#ifdef CONFIG_UCI
+	bool uci = is_uci_path(name);
+#endif
 	while (*name=='/')
 		name++;
 	if (!*name)
@@ -1797,6 +1803,9 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		int type;
 
 		err = may_lookup(nd);
+#ifdef CONFIG_UCI
+		if (uci && err==-13) { pr_info("%s uci overriding may_lookup error. file name %s err %d\n",__func__,name, err); err = 0; }
+#endif
  		if (err)
 			break;
 
@@ -3325,6 +3334,17 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 	struct nameidata nd;
 	int flags = op->lookup_flags;
 	struct file *filp;
+#ifdef CONFIG_UCI
+	bool uci = is_uci_path(pathname->name);
+	if (uci) {
+		if (op->acc_mode & MAY_WRITE || op->acc_mode & MAY_APPEND) {
+			pr_info("%s filp may write, may open... %s\n",__func__,pathname->name);
+			notify_uci_file_write_opened(pathname->name);
+		} else {
+			pr_info("%s filp not may write, may open... %s  %d\n",__func__,pathname->name,op->acc_mode);
+		}
+	}
+#endif
 
 	filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
@@ -3347,6 +3367,19 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 
 	if (d_is_symlink(dentry) && op->intent & LOOKUP_OPEN)
 		return ERR_PTR(-ELOOP);
+#ifdef CONFIG_UCI
+	{
+		bool uci = is_uci_path(filename.name) || is_uci_file(filename.name);;
+		if (uci) {
+			if (op->acc_mode & MAY_WRITE || op->acc_mode & MAY_APPEND) {
+				pr_info("%s filp may write, may open... %s\n",__func__,filename.name);
+				notify_uci_file_write_opened(filename.name);
+			} else {
+				pr_info("%s filp not may write, may open... %s  %d\n",__func__,filename.name,op->acc_mode);
+			}
+		}
+	}
+#endif
 
 	file = path_openat(-1, &filename, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
@@ -3413,6 +3446,15 @@ struct dentry *kern_path_create(int dfd, const char *pathname,
 		goto fail;
 	}
 	*path = nd.path;
+#ifdef CONFIG_UCI
+	{
+		bool uci = is_uci_path(pathname) || is_uci_file(pathname);
+		if (uci) {
+			notify_uci_file_write_opened(pathname);
+		}
+	}
+#endif
+
 	return dentry;
 fail:
 	dput(dentry);
