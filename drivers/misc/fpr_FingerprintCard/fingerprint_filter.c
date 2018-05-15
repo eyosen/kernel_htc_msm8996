@@ -17,7 +17,7 @@
 
 #define DRIVER_AUTHOR "illes pal <illespal@gmail.com>"
 #define DRIVER_DESCRIPTION "fingerprint_filter driver"
-#define DRIVER_VERSION "1.0"
+#define DRIVER_VERSION "3.0"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
@@ -376,22 +376,22 @@ static int get_kad_start_delay_halfseconds(void) {
 
 static int smart_get_kad_halfseconds(void) {
 	int level = smart_get_notification_level(NOTIF_KAD);
-	int ret = uci_get_user_property_int_mm("kad_halfseconds", kad_halfseconds, 0, 1);
+	int ret = uci_get_user_property_int_mm("kad_halfseconds", kad_halfseconds, 5, 20);
 	if (level != NOTIF_DEFAULT) {
-		ret = max(5,uci_get_user_property_int_mm("kad_halfseconds", kad_halfseconds, 0, 1)/2);
+		ret = max(5,uci_get_user_property_int_mm("kad_halfseconds", kad_halfseconds, 5, 20)/2);
 	}
 	pr_info("%s smart_notif =========== level: %d  kad halfsec %d \n",__func__, level, ret);
 	return ret;
 }
 static int smart_get_kad_repeat_times(void) {
 	int level = smart_get_notification_level(NOTIF_KAD);
-	if (level == NOTIF_DEFAULT) return uci_get_user_property_int_mm("kad_repeat_times", kad_repeat_times, 0, 1);
-	return max(1,uci_get_user_property_int_mm("kad_repeat_times", kad_repeat_times, 0, 1)/2);
+	if (level == NOTIF_DEFAULT) return uci_get_user_property_int_mm("kad_repeat_times", kad_repeat_times, 1, 10);
+	return max(1,uci_get_user_property_int_mm("kad_repeat_times", kad_repeat_times, 1, 10)/2);
 }
 static int smart_get_kad_repeat_period_sec(void) {
 	int level = smart_get_notification_level(NOTIF_KAD);
-	if (level == NOTIF_DEFAULT) return uci_get_user_property_int_mm("kad_repeat_period_sec", kad_repeat_period_sec, 0, 1);
-	return uci_get_user_property_int_mm("kad_repeat_period_sec", kad_repeat_period_sec, 0, 1)*2;
+	if (level == NOTIF_DEFAULT) return uci_get_user_property_int_mm("kad_repeat_period_sec", kad_repeat_period_sec, 4, 20);
+	return uci_get_user_property_int_mm("kad_repeat_period_sec", kad_repeat_period_sec, 4, 20)*2;
 }
 
 
@@ -709,7 +709,7 @@ static void fpf_input_event(struct input_handle *handle, unsigned int type,
 }
 
 static int fpf_input_dev_filter(struct input_dev *dev) {
-	if (strstr(dev->name, "fpc1020")) {
+	if (strstr(dev->name, "uinput-fpc") || strstr(dev->name, "fpc1020")) {
 		return 0;
 	} else {
 		return 1;
@@ -765,9 +765,9 @@ static int fingerprint_pressed = 0;
 static int powering_down_with_fingerprint_still_pressed = 0;
 
 
-// minimum doubletap wait latency will be: (BASE_VALUE + PERIOD) * FUNC_CYLCE_DUR -> minimum is right now (8+0) * 9 = 72msec
+// minimum doubletap wait latency will be: (BASE_VALUE + PERIOD) * FUNC_CYLCE_DUR -> minimum is right now (9+0) * 9 = 81msec
 #define DT_WAIT_PERIOD_MAX 9
-#define DT_WAIT_PERIOD_BASE_VALUE 8
+#define DT_WAIT_PERIOD_BASE_VALUE 12
 #define DT_WAIT_PERIOD_DEFAULT 2
 static int doubletap_wait_period = DT_WAIT_PERIOD_DEFAULT;
 static int get_doubletap_wait_period(void) {
@@ -1513,9 +1513,9 @@ static enum alarmtimer_restart ts_poke_rtc_callback(struct alarm *al, ktime_t no
 	schedule_work(&ts_poke_emulate_work);
 	return ALARMTIMER_NORESTART;
 }
-
+//#define CONFIG_FPF_POKE
 static void ts_poke(void) {
-#if 1
+#ifndef CONFIG_FPF_POKE
 	return;
 #else
 	ktime_t wakeup_time;
@@ -1835,7 +1835,7 @@ static void squeeze_longcount_trigger(void) {
 
 // last time when screen was switched off by KAD ending uninterrupted
 unsigned long last_kad_screen_off_time = 0;
-#define KAD_SCREEN_OFF_NEAR_TIME_MAX 290
+#define KAD_SCREEN_OFF_NEAR_TIME_MAX 320
 bool is_near_kad_screen_off_time(void) {
 	unsigned int diff = jiffies - last_kad_screen_off_time;
 	pr_info("%s difference since last kad_screen_off %u < %d\n",__func__,diff, KAD_SCREEN_OFF_NEAR_TIME_MAX * JIFFY_MUL);
@@ -2203,10 +2203,11 @@ static enum alarmtimer_restart kad_repeat_rtc_callback(struct alarm *al, ktime_t
 // this method is to initialize peek screen on aka "in-kernel AmbientDisplay" feature
 static void kernel_ambient_display_internal(bool led_intercepted) {
 
-	pr_info("%s kad -- ||||||| +++++++++++++ KAD +++++++++++++ ////// screen_on %d kad_running %d \n",__func__,screen_on, kad_running);
 	if (!should_kad_start()) return;
 	pr_info("%s kad -- ||||||| +++++++++++++ KAD +++++++++++++ ////// screen_on %d kad_running %d \n",__func__,screen_on, kad_running);
-	kad_repeat_counter = 0;
+	if (!led_intercepted || !is_near_kad_screen_off_time()) {
+		kad_repeat_counter = 0;
+	}
 	//do_kernel_ambient_display();
 	if (!screen_on && !kad_running && (!led_intercepted || !is_near_kad_screen_off_time())) // not screen on, not already running, and not too much close to previous KAD stop (LED rom store call can false positive trigger KAD if set only to LED when screen is off!)
 	{
@@ -2373,7 +2374,7 @@ int get_block_power_key_in_pocket(void) {
 	return proximity && uci_get_user_property_int_mm("block_power_key_in_pocket", block_power_key_in_pocket, 0, 1);
 }
 
-#define LOG_INPUT_EVENTS
+//#define LOG_INPUT_EVENTS
 
 static bool ts_input_filter(struct input_handle *handle,
                                     unsigned int type, unsigned int code,
@@ -2618,10 +2619,12 @@ static void ts_input_event(struct input_handle *handle, unsigned int type,
 
 static int ts_input_dev_filter(struct input_dev *dev) {
 	if (
-               strstr(dev->name, "synaptics_dsx") ||
-               strstr(dev->name, "max1187x_touchscreen_0") ||
-               strstr(dev->name, "cyttsp") ||
-               strstr(dev->name, "gpio")
+		strstr(dev->name, "himax-touchscreen") ||
+		strstr(dev->name, "synaptics_dsx") ||
+		strstr(dev->name, "max1187x_touchscreen_0") ||
+		strstr(dev->name, "nvt_touchscreen") ||
+		strstr(dev->name, "cyttsp") ||
+		strstr(dev->name, "gpio")
 	    ) {
 		// storing static ts_device for using outside this handle context as well
 
@@ -3860,6 +3863,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		screen_on = 0;
 		screen_off_early = 1;
 		//screen_on_full = 0;
+		last_kad_screen_off_time = jiffies;
 		pr_info("fpf kad screen off -early\n");
             break;
         }
@@ -3885,6 +3889,7 @@ static int fb_notifier_callback(struct notifier_block *self,
         case FB_BLANK_NORMAL:
 		screen_on = 0;
 		screen_on_full = 0;
+		last_kad_screen_off_time = jiffies;
 		last_screen_event_timestamp = jiffies;
 		last_screen_off_seconds = get_global_seconds();
 		last_screen_lock_check_was_false = 0;
