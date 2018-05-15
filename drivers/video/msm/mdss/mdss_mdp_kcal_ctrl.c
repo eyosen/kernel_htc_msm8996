@@ -591,11 +591,13 @@ static int first_parse = 1;
 static int last_enable_state = 0;
 static void uci_user_listener(void);
 
+#define CONFIG_UPDATE_ON_UNBLANK
 static void kcal_uci_set(struct work_struct * kcal_uci_set_work) {
 	if (last_enable_state == 1 && !kad_override_active) {
 #ifdef CONFIG_UPDATE_ON_UNBLANK
 		last_enable_state = 0; // simply set to last enable false and ...
 		uci_user_listener(); // ... call listener as if config changed, it will set stuff...
+#endif
 	}
 }
 DECLARE_DELAYED_WORK(kcal_uci_set_work, kcal_uci_set);
