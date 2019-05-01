@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 
 extern void set_vibrate(int value);
 
-static int fpf_switch = 2;
+static int fpf_switch = 0;
 static struct input_dev * fpf_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static DEFINE_MUTEX(fpfuncworklock);

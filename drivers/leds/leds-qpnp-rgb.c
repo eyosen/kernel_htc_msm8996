@@ -427,10 +427,10 @@ static int charge_level = 0; // information from HTC battery driver
 static int charging_notification_occured_for_rgb = 0;
 static int short_vib_notif = 0;
 static int supposedly_charging = 0; // information from led call (multicolor work)
-static int colored_charge_level = 1; // if set to 1, colored charge level handling is enabled, 0 - not
+static int colored_charge_level = 0; // if set to 1, colored charge level handling is enabled, 0 - not
 
 static int lights_down_divider = 1;
-static int pulse_rgb_blink = 1;  // 0 - normal stock blinking / 1 - pulsating
+static int pulse_rgb_blink = 0;  // 0 - normal stock blinking / 1 - pulsating
 static int rgb_coeff_divider = 1; // value between 1 - 20
 static int bln_coeff_divider = 2; // value between 1 - 20
 static int pulse_rgb_blink_on_charger = 0; // 0 - not blink on charger, 1 - do blink
