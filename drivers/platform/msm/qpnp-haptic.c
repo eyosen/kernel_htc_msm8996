@@ -1783,7 +1783,7 @@ static int qpnp_hap_set(struct qpnp_hap *hap, int on)
 #define MIN_TD_VALUE_NOTIFICATION_CALL 1000
 #define MIN_TD_VALUE_NOTIFICATION_ALARM 500
 
-static int notification_booster = 2;
+static int notification_booster = 0;
 static int vibration_power_set = 0;
 static int vibration_power_percentage = 40;
 
