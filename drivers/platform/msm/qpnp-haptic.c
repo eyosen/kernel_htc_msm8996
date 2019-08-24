@@ -415,8 +415,8 @@ struct qpnp_hap {
 	u8 pmic_subtype;
 	u8 auto_res_mode;
 	bool lra_hw_auto_resonance;
-	bool vcc_pon_enabled;
 	bool soft_mode_enable;
+	bool vcc_pon_enabled;
 	bool state;
 	bool use_play_irq;
 	bool use_sc_irq;

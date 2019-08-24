@@ -20,7 +20,7 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(
-	intr_to_poll,
+	intr_to_poll3,
 
 	TP_PROTO(unsigned long client),
 
@@ -38,7 +38,7 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	poll_to_intr,
+	poll_to_intr3,
 
 	TP_PROTO(unsigned long client),
 
@@ -56,7 +56,7 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	idle_sleep_enter,
+	idle_sleep_enter3,
 
 	TP_PROTO(unsigned long client),
 
@@ -74,7 +74,7 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	idle_sleep_exit,
+	idle_sleep_exit3,
 
 	TP_PROTO(unsigned long client),
 
@@ -92,7 +92,7 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	rmnet_ipa_netifni,
+	rmnet_ipa_netifni3,
 
 	TP_PROTO(unsigned long rx_pkt_cnt),
 
@@ -110,7 +110,7 @@ TRACE_EVENT(
 );
 
 TRACE_EVENT(
-	rmnet_ipa_netifrx,
+	rmnet_ipa_netifrx3,
 
 	TP_PROTO(unsigned long rx_pkt_cnt),
 
@@ -131,5 +131,5 @@ TRACE_EVENT(
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../drivers/platform/msm/ipa/ipa_v2
+#define TRACE_INCLUDE_PATH .
 #include <trace/define_trace.h>
