@@ -944,8 +944,8 @@ int diag_process_apps_pkt(unsigned char *buf, int len, int pid)
 		temp += sizeof(uint8_t);
 		entry.cmd_code_hi = (uint16_t)(*(uint16_t *)temp);
 		entry.cmd_code_lo = (uint16_t)(*(uint16_t *)temp);
-		DIAGFWD_INFO("diag: In %s, received cmd %02x %02x %02x\n",
-		 __func__, entry.cmd_code, entry.subsys_id, entry.cmd_code_hi);
+		pr_debug("diag: received cmd_code_hi %02x\n",
+			entry.cmd_code_hi);
 	}
 
 	if ((len >= sizeof(uint8_t)) && *buf == DIAG_CMD_LOG_ON_DMND &&
